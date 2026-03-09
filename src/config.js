@@ -35,9 +35,13 @@ export const CATEGORIES = [
 export const config = {
   biliCookie: must('BILI_COOKIE'),
   biliUid: must('BILI_UID'),
-  zhipuApiKey: must('ZHIPU_API_KEY'),
+  llmProvider: get('LLM_PROVIDER', 'zhipu'), // 'zhipu' or 'kimi'
+  zhipuApiKey: get('ZHIPU_API_KEY', ''),
   zhipuBaseUrl: get('ZHIPU_BASE_URL', 'https://open.bigmodel.cn/api/paas/v4/'),
   zhipuModel: get('ZHIPU_MODEL', 'glm-4.7'),
+  kimiApiKey: get('KIMI_API_KEY', ''),
+  kimiBaseUrl: get('KIMI_BASE_URL', 'https://api.moonshot.cn/v1/'),
+  kimiModel: get('KIMI_MODEL', 'moonshot-v1-8k'),
   dryRun: getBool('DRY_RUN', true),
   moveMode: getBool('MOVE_MODE', false),
   forceReclassify: getBool('FORCE_RECLASSIFY', false),

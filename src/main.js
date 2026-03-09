@@ -4,6 +4,7 @@ import { config, CATEGORIES } from './config.js';
 import { ensureDirs, createLogger, randomDelay, readJson, writeJson, sleep } from './utils.js';
 import { createBiliClient } from './bili.js';
 import { createGlmClassifier } from './glm.js';
+import { createKimiClassifier } from './kimi.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,7 +17,17 @@ const logFile = path.join(rootDir, 'logs', 'run.log');
 const log = createLogger(logFile);
 
 const bili = createBiliClient(config, log);
-const glm = createGlmClassifier(config, CATEGORIES);
+
+let llmClassifier;
+if (config.llmProvider === 'kimi') {
+  llmClassifier = createKimiClassifier(config, CATEGORIES);
+} else {
+  // 保持向后兼容或当作默认防退回方案
+  if (!config.zhipuApiKey && config.llmProvider === 'zhipu') {
+    log('警告', { message: '缺少智谱 API Key，您可以切换 LLM_PROVIDER=kimi' });
+  }
+  llmClassifier = createGlmClassifier(config, CATEGORIES);
+}
 
 function buildPayload(accInfo, videos) {
   const recentVideos = videos.slice(0, config.maxVideoSamples).map(video => ({
@@ -114,7 +125,7 @@ async function main() {
       log('开始批量分类', { count: batchPayloads.length });
       try {
         const classifyData = batchPayloads.map(b => ({ id: b.id, ...b.payload }));
-        const categoryMap = await glm.classifyBatch(classifyData);
+        const categoryMap = await llmClassifier.classifyBatch(classifyData);
 
         for (const item of batchPayloads) {
           const mid = item.id;
