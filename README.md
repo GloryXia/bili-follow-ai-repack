@@ -1,6 +1,6 @@
 # bili-follow-glm
 
-用 Node.js 直接调用 B 站接口，拉取关注列表并结合 GLM-4.7 进行分类，按 B 站常见大分区给每个 UP 主分配一个“主分组”。
+用 Node.js 直接调用 B 站接口，拉取关注列表并结合 LLM (支持 智谱 GLM / 月之暗面 Kimi) 进行分类，按 B 站常见大分区给每个 UP 主分配一个“主分组”。
 
 ## 特点
 
@@ -29,7 +29,9 @@ npm start
 
 - `BILI_COOKIE`
 - `BILI_UID`
-- `ZHIPU_API_KEY`
+- `LLM_PROVIDER` (可选 `zhipu` 或 `kimi`，默认 `zhipu`)
+- `ZHIPU_API_KEY` (使用 GLM 时必填)
+- `KIMI_API_KEY` (使用 Kimi 时必填)
 - `DRY_RUN`
 - `MOVE_MODE`
 - `FORCE_RECLASSIFY`
