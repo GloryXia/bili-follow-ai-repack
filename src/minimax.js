@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { sleep } from './utils.js';
+import { buildBatchPrompt, parseLLMResponse } from './prompts.js';
 
 export function createMinimaxClassifier(config, defaultCategories) {
   const log = (msg, ctx) => console.log(`[MiniMax] ${msg}`, ctx);
@@ -30,18 +31,7 @@ export function createMinimaxClassifier(config, defaultCategories) {
   async function classifyBatch(upList, dynamicCategories) {
     const categories = dynamicCategories && dynamicCategories.length > 0 ? dynamicCategories : defaultCategories;
 
-    const systemPrompt = config.allowCustomCategories
-      ? `请根据提供的一组UP主信息，给出每个UP主的唯一主分组。已存在的参考分类：${categories.join('、')}。\n如果你觉得已存在的分类都不够贴切，或者出现多个类似内容的UP主，你可以自己简短概括一个更细粒度的新分类名称（不超过6个字）。`
-      : `请根据提供的一组UP主信息，给出每个UP主的唯一主分组。你只能从以下分类中选择一个：${categories.join('、')}。`;
-
-    const instructions = [
-      systemPrompt,
-      '返回格式必须严格为JSON对象：',
-      '{',
-      '  "UP主UID": "分类名称"',
-      '}',
-      '不要包含任何说明文字，也不要包裹在 \`\`\`json 中。'
-    ].join('\n');
+    const instructions = buildBatchPrompt(config, categories);
 
     const userInfo = upList.map(up => {
       let info = `UID: ${up.id}\n名称: ${up.uname}\n签名: ${up.sign || '无'}`;
@@ -90,17 +80,10 @@ export function createMinimaxClassifier(config, defaultCategories) {
         throw new Error('模型返回结果为空:\n' + JSON.stringify(response.data));
       }
 
-      const rawContent = content.trim().replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
-
       try {
-        const result = JSON.parse(rawContent);
-        // validate JSON object structure
-        if (typeof result !== 'object' || Array.isArray(result)) {
-          throw new Error('Not a valid JSON object map');
-        }
-        return result;
+        return parseLLMResponse(content);
       } catch (parseError) {
-        log('解析JSON失败，原始内容：', { rawContent });
+        log('解析JSON失败', { message: parseError.message });
         throw parseError;
       }
     });
