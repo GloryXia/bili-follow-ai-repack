@@ -26,7 +26,7 @@ if (config.llmProvider === 'kimi') {
   llmClassifier = createMinimaxClassifier(config, CATEGORIES);
 } else {
   // 保持向后兼容或当作默认防退回方案
-  if (!config.zhipuApiKey && config.llmProvider === 'zhipu') {
+  if (!config.zhipuApiKey && (config.llmProvider === 'zhipu')) {
     log('警告', { message: '缺少智谱 API Key，您可以切换 LLM_PROVIDER=kimi 或 minimax' });
   }
   llmClassifier = createGlmClassifier(config, CATEGORIES);
@@ -68,7 +68,7 @@ async function main() {
     uid: config.biliUid,
     dryRun: config.dryRun,
     moveMode: config.moveMode,
-    model: config.zhipuModel,
+    llmProvider: config.llmProvider,
     pageSize: config.pageSize
   });
 
@@ -126,33 +126,52 @@ async function main() {
     for (const up of chunk) {
       const mid = String(up.mid);
       if (!config.forceReclassify && cache[mid]?.category) {
-        log('跳过缓存', { mid, uname: cache[mid].uname || up.uname, category: cache[mid].category });
+        log('跳过分类（已存在）', { mid, uname: cache[mid].uname || up.uname, category: cache[mid].category });
         continue;
       }
 
-      try {
-        await randomDelay(config.requestMinDelayMs, config.requestMaxDelayMs);
-        const accInfo = await bili.getAccInfo(mid, nav);
+      let payload;
+      let accName;
 
-        await randomDelay(config.requestMinDelayMs, config.requestMaxDelayMs);
-        const videos = await bili.getRecentVideos(mid, nav);
+      if (cache[mid]?.source) {
+        payload = cache[mid].source;
+        accName = payload.name || cache[mid].uname || up.uname;
+        log('读取本地资料缓存', { mid, uname: accName });
+      } else {
+        try {
+          await randomDelay(config.requestMinDelayMs, config.requestMaxDelayMs);
+          const accInfo = await bili.getAccInfo(mid, nav);
 
-        const payload = buildPayload(accInfo, videos);
-        batchPayloads.push({
-          id: mid,
-          uname: accInfo?.name || up.uname,
-          payload
-        });
-      } catch (error) {
-        log('获取信息失败', {
-          mid,
-          uname: up.uname,
-          message: error?.response?.data?.message || error?.message || String(error)
-        });
+          await randomDelay(config.requestMinDelayMs, config.requestMaxDelayMs);
+          const videos = await bili.getRecentVideos(mid, nav);
+
+          payload = buildPayload(accInfo, videos);
+          accName = accInfo?.name || up.uname;
+
+          if (!cache[mid]) cache[mid] = {};
+          cache[mid].uname = accName;
+          cache[mid].source = payload;
+        } catch (error) {
+          log('获取信息失败', {
+            mid,
+            uname: up.uname,
+            message: error?.response?.data?.message || error?.message || String(error)
+          });
+          continue;
+        }
       }
+
+      batchPayloads.push({
+        id: mid,
+        uname: accName,
+        payload
+      });
     }
 
     if (batchPayloads.length > 0) {
+      log('保存最新抓取的 UP 主资料到缓存...', { file: cacheFile });
+      await writeJson(cacheFile, cache);
+
       log('开始批量分类', { count: batchPayloads.length });
       try {
         const classifyData = batchPayloads.map(b => ({ id: b.id, ...b.payload }));

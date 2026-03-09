@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { sleep } from './utils.js';
+import { normalizeCategory, sleep } from './utils.js';
 import { buildBatchPrompt, parseLLMResponse } from './prompts.js';
 
 export function createMinimaxClassifier(config, defaultCategories) {
@@ -81,7 +81,12 @@ export function createMinimaxClassifier(config, defaultCategories) {
       }
 
       try {
-        return parseLLMResponse(content);
+        const parsed = parseLLMResponse(content);
+        const result = {};
+        for (const [id, value] of Object.entries(parsed)) {
+          result[id] = normalizeCategory(value, categories, config.allowCustomCategories);
+        }
+        return result;
       } catch (parseError) {
         log('解析JSON失败', { message: parseError.message });
         throw parseError;

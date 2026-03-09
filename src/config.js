@@ -37,7 +37,7 @@ export const CATEGORIES = [
 export const config = {
   biliCookie: must('BILI_COOKIE'),
   biliUid: must('BILI_UID'),
-  llmProvider: get('LLM_PROVIDER', 'zhipu'), // 'zhipu' or 'kimi'
+  llmProvider: get('LLM_PROVIDER', 'zhipu'), // 'zhipu', 'kimi', or 'minimax'
   zhipuApiKey: get('ZHIPU_API_KEY', ''),
   zhipuBaseUrl: get('ZHIPU_BASE_URL', 'https://open.bigmodel.cn/api/paas/v4/'),
   zhipuModel: get('ZHIPU_MODEL', 'glm-4.7'),

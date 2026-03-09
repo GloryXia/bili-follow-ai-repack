@@ -31,7 +31,7 @@ export async function writeJson(file, value) {
   await fs.writeJson(file, value, { spaces: 2 });
 }
 
-export function normalizeCategory(value, categories = CATEGORIES, allowCustom = false) {
+export function normalizeCategory(value, categories = [], allowCustom = false) {
   const clean = String(value || '').trim().replace(/[，。；;：:\s/\\\[\]（）()]/g, '');
   if (categories.includes(clean)) return clean;
   // 如果开启了自定义分组，且新名称不长（比如 <=8 个字符）且不是空字符串
