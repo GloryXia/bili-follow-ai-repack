@@ -1,105 +1,187 @@
-# bili-follow-ai-repack
+# BiliBoard（哔哩看板）
 
-用 Node.js 直接调用 B 站接口，拉取关注列表并结合 LLM（支持 **智谱 GLM** / **月之暗面 Kimi** / **MiniMax**）进行分类，按 B 站常见大分区给每个 UP 主分配一个"主分组"，然后统一批量同步到 B 站。
+B 站个人数据管理工具，包含两套使用方式：
 
-## 特点
+- `extension/`：Chrome 扩展，在 B 站页面内实时完成关注分组、收藏归类、数据看板和操作日志。
+- `src/` + `scripts/`：Node.js CLI，用于批量拉取、分析、整理和导出数据。
 
-- 只走接口，不操作 DOM
-- 默认是更保守的低风险参数
-- 支持 `DRY_RUN` 先只读不写
-- 支持缓存、断点续跑、日志记录
-- 支持 WBI 签名接口获取空间信息与最近视频
-- 关注列表全量本地缓存，防止中途网络中断丢失进度
-- 统一提示词模块 (`src/prompts.js`)，所有模型共享同一套指令
-- 健壮的 JSON 解析器，自动跳过模型输出的 `<think>` 推理标签与 Markdown 包裹
+## 功能概览
 
-## 快速开始
+| 工作方式 | 模块 | 说明 |
+|------|------|------|
+| Chrome 扩展 | 关注分组 | 点关注后自动分析 UP 主并写入最合适的关注分组 |
+| Chrome 扩展 | 收藏归类 | 在视频详情页收藏弹窗内前置推荐收藏夹，必要时自动新建并选中 |
+| Chrome 扩展 | 弹窗看板 | 在 popup 内查看关注、收藏、稍后再看和历史概览 |
+| Chrome 扩展 | 操作反馈 | 成功后显示系统通知、页内 toast 和扩展徽标提示 |
+| Node.js CLI | 关注分组 | 批量拉取关注列表，LLM 分类并同步到 B 站 |
+| Node.js CLI | 收藏夹整理 | 批量分析收藏夹视频并执行归类/移动 |
+| Node.js CLI | 稍后再看 | 生成摘要和观看优先级建议 |
+| Node.js CLI | 历史/互动/报告 | 统计画像、互动偏好、Markdown 报告和 JSON 导出 |
+
+## Chrome 扩展
+
+### 当前能力
+
+- `popup` 内提供 `状态`、`看板`、`设置`、`日志` 四个标签页。
+- `自动分类` 是扩展侧总执行开关：
+  - 打开：允许自动创建分组/收藏夹并自动提交。
+  - 关闭：只给建议，不自动执行写操作。
+- 关注分组按“下一次点击生效”读取开关状态。
+- 收藏弹窗自动化按“下一次新打开的收藏弹窗生效”读取开关状态。
+- 收藏弹窗前置自动化当前只覆盖 B 站视频详情页。
+- 成功路径会显示更明显的提示：系统通知 + 页内 toast + 扩展图标绿色徽标。
+
+### 安装方式
+
+1. 打开 `chrome://extensions`
+2. 开启“开发者模式”
+3. 选择“加载已解压的扩展程序”
+4. 选择仓库中的 [`extension/`](extension/) 目录
+
+### 使用方式
+
+1. 在浏览器中登录 B 站，并至少打开一个 B 站页面。
+2. 打开扩展 popup，在“设置”里选择 LLM 服务商并填入 API Key。
+3. 在“状态”页按需开启：
+   - `总开关`
+   - `关注自动分组`
+   - `收藏自动归类`
+   - `自动分类`
+4. 后续在 B 站内：
+   - 点“关注”时，扩展会自动分析并分组。
+   - 在视频详情页点“收藏”时，扩展会在弹窗里预选推荐收藏夹；没有合适收藏夹时会自动创建并重新打开弹窗后选中。
+
+### 扩展配置存储
+
+- 扩展侧配置保存在 `chrome.storage.local`
+- 不依赖 `.env`
+- 默认值定义在 [`extension/lib/storage.js`](extension/lib/storage.js)
+
+主要字段：
+
+| 字段 | 说明 |
+|------|------|
+| `enabled` | 扩展总开关 |
+| `autoFollowGroup` | 是否接管关注分组 |
+| `autoFavOrganize` | 是否接管收藏归类 |
+| `autoClassify` | 是否自动执行写操作；关闭时仅建议 |
+| `llmProvider` | `zhipu` / `kimi` / `minimax` |
+| `zhipuApiKey` / `kimiApiKey` / `minimaxApiKey` | 对应服务商 Key |
+
+## Node.js CLI
+
+### 快速开始
 
 ```bash
 npm install
 cp .env.template .env
-# 修改 .env 中的 Cookie、API Key 等
+# 修改 .env 中的 Cookie、UID、API Key 等
+
 npm start
 ```
 
-## 推荐运行顺序
+### 常用命令
 
-1. 先保持 `DRY_RUN=true`，只看分类结果。
-2. 抽查分类没问题后，把 `DRY_RUN=false`。
-3. 继续保持 `MOVE_MODE=false`，先"复制到分组"，不要一开始就移动。
+| 模块 | npm 脚本 | 说明 |
+|------|----------|------|
+| 全部执行 | `npm start` | 顺序执行全部模块 |
+| 关注分组 | `npm run follow` | 批量拉取关注并同步分组 |
+| 收藏夹 | `npm run favorites` | 批量分析并整理收藏夹 |
+| 稍后再看 | `npm run watchlater` | 摘要和优先级推荐 |
+| 历史记录 | `npm run history` | 观看习惯统计和 AI 画像 |
+| 互动统计 | `npm run interactions` | 投币/点赞偏好分析 |
+| 综合报告 | `npm run report` | 生成 Markdown 报告 |
+| 数据导出 | `npm run export` | 导出 JSON 备份 |
 
-## 运行流程
+### 命令示例
 
-`npm start` 会按顺序执行以下步骤：
+```bash
+npm run follow                 # 完整流程：拉取 -> 分类 -> 同步
+npm run follow -- --dry-run    # 只分类不写入 B 站
 
-1. **获取关注列表** — 逐页拉取全部关注 UP 主，缓存至 `data/followings.json`（下次启动直接读取，不再重复拉取）。
-2. **逐批分类** — 按 `PAGE_SIZE` 为单位，对尚未分类的 UP 主调用 LLM 批量分类，结果写入 `data/cache.json`。
-3. **批量同步分组** — 分类结束后，统一扫描 `cache.json`，在 B 站创建缺失分组，然后以每次 50 人为一批将 UP 主加入/移入对应分组。
+npm run favorites                    # 完整流程：拉取 -> 分析 -> 整理
+npm run favorites -- --fetch-only    # 只拉取数据
+npm run favorites -- --analyze-only  # 拉取 + 分析，不整理
+npm run favorites -- --dry-run       # 分析但不执行移动
 
-> **提示**：步骤 1、2 可随时中断继续，已缓存的数据不会丢失；步骤 3 仅在 `DRY_RUN=false` 时执行。
+npm run watchlater                  # 拉取稍后再看并做摘要
+npm run history -- --max-pages 10   # 限制历史拉取页数
+npm run report                      # 生成综合报告
+npm run export                      # 导出本地数据
+```
 
-## 主要环境变量
+### CLI 环境变量
+
+以下变量只影响 Node.js CLI，不影响 Chrome 扩展：
 
 | 变量 | 说明 |
 |------|------|
 | `BILI_COOKIE` | B 站登录态 Cookie |
 | `BILI_UID` | 你的 B 站 UID |
-| `LLM_PROVIDER` | 可选 `zhipu` / `kimi` / `minimax`，默认 `zhipu` |
-| `ZHIPU_API_KEY` | 使用 GLM 时必填 |
+| `LLM_PROVIDER` | `zhipu` / `kimi` / `minimax` |
+| `ZHIPU_API_KEY` | 使用智谱时必填 |
 | `KIMI_API_KEY` | 使用 Kimi 时必填 |
 | `MINIMAX_API_KEY` | 使用 MiniMax 时必填 |
-| `ALLOW_CUSTOM_CATEGORIES` | `true` / `false`，开启大模型细粒度自由分组 |
-| `DRY_RUN` | `true` 时只分类不写入 B 站 |
-| `MOVE_MODE` | `true` 时用"移动"替代"复制"（更激进） |
-| `FORCE_RECLASSIFY` | `true` 时忽略缓存，强制对所有 UP 主重新分类并重新拉取关注列表 |
-| `PAGE_SIZE` | 每批处理的 UP 主数量 |
-| `TAG_WRITE_DELAY_MS` | 每次调用 B 站写入接口的间隔（毫秒） |
-
-## 输出文件
-
-| 文件 | 说明 |
-|------|------|
-| `data/followings.json` | 全量关注列表缓存 |
-| `data/cache.json` | mid → 分类结果的缓存 |
-| `data/tags.json` | 分组名 → B 站分组 ID 的映射 |
-| `logs/run.log` | 运行日志 |
+| `DRY_RUN` | CLI 只读模式，默认 `true` |
+| `MOVE_MODE` | 收藏整理时是否用“移动”替代“复制” |
+| `FORCE_RECLASSIFY` | 是否忽略缓存强制重新分析 |
+| `ALLOW_CUSTOM_CATEGORIES` | 是否允许自定义分类名 |
 
 ## 项目结构
 
-```
+```text
+extension/
+├── manifest.json              # Chrome 扩展入口
+├── service-worker.js          # MV3 后台逻辑
+├── content/
+│   ├── bridge.js              # 隔离世界桥接 + 页内 toast
+│   └── interceptor.js         # 页面请求拦截 + 收藏弹窗自动化
+├── lib/
+│   ├── bili-api.js            # 扩展侧 B 站 API 封装
+│   ├── classifier.js          # 实时分类核心逻辑
+│   ├── dashboard-view.js      # popup 看板渲染
+│   ├── llm-client.js          # 扩展侧 LLM 请求
+│   ├── page-actions.js        # 通过页面上下文代请求 B 站
+│   ├── prompts.js             # 扩展提示词
+│   ├── storage.js             # chrome.storage 封装
+│   └── wbi.js                 # WBI 签名
+└── popup/
+    ├── popup.html
+    ├── popup.css
+    └── popup.js
+
 src/
-├── main.js        # 主流程：拉取 → 分类 → 批量同步
-├── config.js      # 环境变量解析与默认分类列表
-├── bili.js        # B 站 API 封装（关注列表、空间信息、分组管理）
-├── wbi.js         # WBI 签名算法
-├── prompts.js     # 统一的 LLM 提示词与响应解析
-├── glm.js         # 智谱 GLM 客户端
-├── kimi.js        # 月之暗面 Kimi 客户端
-├── minimax.js     # MiniMax 客户端
-└── utils.js       # 通用工具函数
+├── index.js                   # CLI 入口
+├── config.js                  # 环境变量解析
+├── core/                      # CLI 基础设施
+├── llm/                       # CLI LLM 适配层
+├── modules/                   # CLI 各模块实现
+└── main.js                    # 旧入口，保留兼容
+
 scripts/
-└── sync_tags.js   # 独立脚本：仅读取 cache.json 批量同步分组（不调用 LLM）
+├── export.js                  # 导出脚本
+└── sync_tags.js               # 独立同步脚本
 ```
 
 ## 常见问题
 
-### 1. 请求突然失败变多
-先暂停一段时间再继续。对老号来说，慢一点通常比快一点更稳。
+### 扩展和 CLI 有什么区别？
 
-### 2. 出现验证码或返回拦截
-说明频率过高或登录态异常。先检查 Cookie 是否有效，再拉长延迟。
+- 扩展适合日常实时使用，直接在 B 站页面内自动分组/归类。
+- CLI 适合批量处理、生成报告和数据导出。
 
-### 3. 已有分组会不会被覆盖
-不会。默认是新增或复用分组，并把 UP 加进去。只有 `MOVE_MODE=true` 时才会更激进。
+### `autoClassify` 和 `DRY_RUN` 是一回事吗？
 
-### 4. DRY_RUN 切到 false 后分组不生效
-旧的 `DRY_RUN=true` 会在 `tags.json` 中写入 `dry-run-xxx` 假 ID，程序会在非 DRY_RUN 模式下自动清理这些假数据。确保 `FORCE_RECLASSIFY=true` 让缓存重新生效。
+不是。
 
-### 5. `scripts/sync_tags.js` 的核心适用场景
-此独立离线同步脚本是主流程的备用“逃生舱”，核心支持三个场景：
-- **手动纠错后一键生效**：如果您发现大模型的少数分类不准，可直接在 `data/cache.json` 中搜索 UID 手动修改 `"category"` 值，然后运行此脚本，瞬间拉平到 B 站，无需再耗费大模型额度。
-- **配合 DRY_RUN（沙盒测试模式）**：您可以在 `.env` 保留 `DRY_RUN=true`，让主程序安全地跑完全量数据并只保存在本地。经查阅 `cache.json` 确认分类全部靠谱后，运行此脚本闭眼批量发布到 B 站。
-- **应对网络错误打断**：如果 `npm start` 在最后一步“批量同步”期间网络断开或 B 站接口抽风打断，不必重启主程序重新校验。稍后直接运行此脚本即可完成善后。
-```bash
-node scripts/sync_tags.js
-```
+- `autoClassify` 是扩展侧开关，保存在浏览器本地存储里。
+- `DRY_RUN` 是 CLI 环境变量，只影响 Node.js 脚本。
+
+### 收藏弹窗自动化覆盖哪些场景？
+
+当前只优先覆盖 B 站视频详情页的原生收藏弹窗。其他入口默认回退到原生行为或旧的兜底链路。
+
+### 数据文件在哪？
+
+- CLI 运行结果默认写入 `data/` 和 `reports/`
+- 扩展运行日志和配置保存在浏览器 `chrome.storage.local`

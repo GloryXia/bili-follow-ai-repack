@@ -1,9 +1,21 @@
+/**
+ * 独立同步脚本 — 仅读取 cache.json 批量同步分组到 B 站（不调用 LLM）
+ *
+ * 适用场景：
+ * 1. 手动纠错后一键生效
+ * 2. DRY_RUN 沙盒测试后批量发布
+ * 3. 网络中断后补同步
+ *
+ * 用法：node scripts/sync_tags.js
+ */
+
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createBiliClient } from '../src/bili.js';
+import { createBiliClient } from '../src/core/bili-client.js';
 import { config } from '../src/config.js';
-import { createLogger, sleep } from '../src/utils.js';
+import { createLogger } from '../src/core/logger.js';
+import { sleep } from '../src/core/helpers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,7 +25,12 @@ const bili = createBiliClient(config, log);
 
 async function sync() {
   log('开始同步本地 cache.json 分组至 B 站...');
-  const cacheFile = path.join(__dirname, '../data/cache.json');
+
+  // 支持新旧两种路径
+  const newCacheFile = path.join(__dirname, '../data/follow/cache.json');
+  const legacyCacheFile = path.join(__dirname, '../data/cache.json');
+  const cacheFile = fs.existsSync(newCacheFile) ? newCacheFile : legacyCacheFile;
+
   if (!fs.existsSync(cacheFile)) {
     log('本地没有发现 cache.json');
     return;
@@ -34,13 +51,11 @@ async function sync() {
 
   // 3. Sync
   for (const category of Object.keys(groups)) {
-    // skip dry-run logic completely
     if (category.startsWith('dry-run')) continue;
 
     const mids = groups[category];
     log(`处理分组 [${category}], 包含 ${mids.length} 个UP主`);
 
-    // Create Tag if missing
     if (!tagMap[category]) {
       log(`B站缺少标签 [${category}], 准备创建...`);
       await sleep(config.tagWriteDelayMs || 5000);
@@ -56,7 +71,6 @@ async function sync() {
 
     const tagId = tagMap[category];
 
-    // Batch assign in chunks of 50 (B站API支持逗号分割)
     const chunkSize = 50;
     for (let i = 0; i < mids.length; i += chunkSize) {
       const chunk = mids.slice(i, i + chunkSize);

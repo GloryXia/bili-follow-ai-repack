@@ -4,3 +4,4 @@ logs/*.log
 data/*.json
 !.gitkeep
 .DS_Store
+.idea/

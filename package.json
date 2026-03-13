@@ -1,15 +1,27 @@
 {
-  "name": "bili-follow-glm",
-  "version": "1.1.0",
+  "name": "biliboard",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "低风险方式按 B 站常见分区给关注 UP 主做主分组（GLM-4.7 + Bilibili API）",
+  "description": "BiliBoard (哔哩看板) — B 站个人数据综合管理工具，支持关注分组、收藏夹整理、稍后再看、历史分析等",
+  "bin": {
+    "biliboard": "src/index.js"
+  },
   "scripts": {
-    "start": "node src/main.js",
-    "check": "node --check src/main.js"
+    "start": "node src/index.js all",
+    "follow": "node src/index.js follow",
+    "favorites": "node src/index.js favorites",
+    "watchlater": "node src/index.js watchlater",
+    "history": "node src/index.js history",
+    "interactions": "node src/index.js interactions",
+    "report": "node src/index.js report",
+    "export": "node scripts/export.js",
+    "start:legacy": "node src/main.js",
+    "check": "node --check src/index.js && node --check src/main.js"
   },
   "dependencies": {
     "axios": "^1.8.4",
+    "commander": "^14.0.3",
     "dotenv": "^16.4.7",
     "fs-extra": "^11.3.0"
   }

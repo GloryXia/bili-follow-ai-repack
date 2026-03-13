@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=420">
+  <title>BiliBoard 哔哩看板</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <span class="logo">📊</span>
+        <h1>BiliBoard</h1>
+      </div>
+      <label class="switch" title="总开关">
+        <input type="checkbox" id="masterSwitch">
+        <span class="slider"></span>
+      </label>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="status">状态</button>
+      <button class="tab" data-tab="dashboard">看板</button>
+      <button class="tab" data-tab="settings">设置</button>
+      <button class="tab" data-tab="log">日志</button>
+    </nav>
+
+    <!-- 状态面板 -->
+    <section id="tab-status" class="tab-content active">
+      <div class="status-grid">
+        <div class="status-card">
+          <div class="status-icon">👥</div>
+          <div class="status-info">
+            <div class="status-label">关注自动分组</div>
+            <div class="status-value" id="followStatus">--</div>
+          </div>
+          <label class="switch switch-sm">
+            <input type="checkbox" id="autoFollowSwitch">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="status-card">
+          <div class="status-icon">⭐</div>
+          <div class="status-info">
+            <div class="status-label">收藏自动归类</div>
+            <div class="status-value" id="favStatus">--</div>
+          </div>
+          <label class="switch switch-sm">
+            <input type="checkbox" id="autoFavSwitch">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <div class="info-row">
+          <span>LLM 模型</span>
+          <span id="llmInfo">--</span>
+        </div>
+        <div class="info-row">
+          <span>LLM 配置</span>
+          <span id="llmConfigStatus">--</span>
+        </div>
+        <div class="info-row">
+          <span>B站登录</span>
+          <span id="loginStatus">检测中...</span>
+        </div>
+        <div class="info-row">
+          <span>自动分类</span>
+          <label class="switch switch-sm">
+            <input type="checkbox" id="autoClassifySwitch">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- 看板面板 -->
+    <section id="tab-dashboard" class="tab-content popup-dashboard">
+      <div class="dash-toolbar">
+        <div>
+          <div class="dash-title-text">B站数据概览</div>
+          <div class="dash-subtitle">在弹窗内查看关注、收藏、稍后再看和历史</div>
+        </div>
+        <button class="btn btn-sm" id="dashboardRefreshBtn">刷新</button>
+      </div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>正在加载数据...</p>
+      </div>
+
+      <div class="dash-grid" id="dashGrid" style="display:none;">
+        <div class="overview-row" id="overviewRow"></div>
+
+        <section class="card" id="followCard">
+          <div class="card-header">
+            <h2>👥 关注分组</h2>
+            <span class="card-badge" id="followBadge">--</span>
+          </div>
+          <div class="card-body" id="followBody">
+            <div class="chart-bars" id="followChart"></div>
+          </div>
+        </section>
+
+        <section class="card" id="favCard">
+          <div class="card-header">
+            <h2>⭐ 收藏夹</h2>
+            <span class="card-badge" id="favBadge">--</span>
+          </div>
+          <div class="card-body" id="favBody">
+            <div class="chart-bars" id="favChart"></div>
+          </div>
+        </section>
+
+        <section class="card" id="wlCard">
+          <div class="card-header">
+            <h2>⏰ 稍后再看</h2>
+            <span class="card-badge" id="wlBadge">--</span>
+          </div>
+          <div class="card-body">
+            <div class="donut-wrap" id="wlDonut"></div>
+            <div class="wl-list" id="wlList"></div>
+          </div>
+        </section>
+
+        <section class="card" id="histCard">
+          <div class="card-header">
+            <h2>📺 最近观看</h2>
+            <span class="card-badge" id="histBadge">--</span>
+          </div>
+          <div class="card-body">
+            <div class="hist-list" id="histList"></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="error-box" id="errorBox" style="display:none;">
+        <p>⚠️ <span id="errorMsg"></span></p>
+        <button class="btn btn-sm" id="dashboardRetryBtn">重试</button>
+      </div>
+    </section>
+
+    <!-- 设置面板 -->
+    <section id="tab-settings" class="tab-content">
+      <div class="form-group">
+        <label>LLM 服务商</label>
+        <select id="llmProvider">
+          <option value="zhipu">智谱 GLM</option>
+          <option value="kimi">月之暗面 Kimi</option>
+          <option value="minimax">MiniMax</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="zhipuKeyGroup">
+        <label>智谱 API Key</label>
+        <input type="password" id="zhipuApiKey" placeholder="输入智谱 API Key">
+      </div>
+      <div class="form-group hidden" id="kimiKeyGroup">
+        <label>Kimi API Key</label>
+        <input type="password" id="kimiApiKey" placeholder="输入 Kimi API Key">
+      </div>
+      <div class="form-group hidden" id="minimaxKeyGroup">
+        <label>MiniMax API Key</label>
+        <input type="password" id="minimaxApiKey" placeholder="输入 MiniMax API Key">
+      </div>
+
+      <button class="btn btn-primary" id="saveBtn">💾 保存设置</button>
+      <div class="save-hint" id="saveHint"></div>
+    </section>
+
+    <!-- 日志面板 -->
+    <section id="tab-log" class="tab-content">
+      <div class="log-header">
+        <span>最近操作</span>
+        <button class="btn btn-sm" id="clearLogBtn">清空</button>
+      </div>
+      <div class="log-list" id="logList">
+        <div class="log-empty">暂无操作记录</div>
+      </div>
+    </section>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
