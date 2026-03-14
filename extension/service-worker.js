@@ -223,8 +223,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         notify('收藏归类失败', result.message, { isError: true });
         showPageToast(sender.tab?.id, '收藏归类失败', result.message, 'error');
       } else if (result.alreadyCorrect) {
-        notify('收藏归类',
-          `「${result.title}」已在最佳收藏夹中 ✓`);
+        notify('收藏归类', `「${result.title}」已在最佳收藏夹中 ✓`);
+        showPageToast(sender.tab?.id, '收藏归类成功', `「${result.title}」已在最佳收藏夹中 ✓`, 'success');
       } else if (result.moved) {
         announceSuccess(
           sender.tab?.id,

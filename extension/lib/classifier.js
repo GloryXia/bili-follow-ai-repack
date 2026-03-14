@@ -409,7 +409,14 @@ async function prepareFavoriteSuggestion(rid, requestContext = {}) {
 
   try {
     const chat = createLLMChat(config);
-    const folderOptions = createChoiceOptions(folders, folder => ({
+    
+    // 过滤掉“默认收藏夹”等无意义分类，防止将其作为现有选项喂给 LLM
+    const candidateFolders = folders.filter(folder => {
+      const name = typeof folder === 'string' ? folder : folder.title;
+      return !name.includes('默认');
+    });
+
+    const folderOptions = createChoiceOptions(candidateFolders, folder => ({
       name: typeof folder === 'string' ? folder : folder.title,
       count: typeof folder === 'object' ? folder.media_count || 0 : 0,
     }));
