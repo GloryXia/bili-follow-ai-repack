@@ -122,17 +122,16 @@ npm run export                      # 导出本地数据
 | `MOVE_MODE` | 收藏整理时是否用“移动”替代“复制” |
 | `FORCE_RECLASSIFY` | 是否忽略缓存强制重新分析 |
 
-> **注意：** `config/follow-categories.json` 定义了标准的 B 站关注分类（字符串数组）。
+> **注意：** `extension/config/follow-categories.json` 定义了标准的 B 站关注分类（字符串数组）。
 > - 在 **CLI** 中，它被读取作为关注分类的唯一推荐分组集合。
 > - 在 **Chrome 扩展** 中，它被读取并放入大模型提示词，如果在进行收藏夹**自动新建**环节，大模型被强制要求首选匹配该名单里的标准领域名称（如“知识”、“科技数码”等），以保证新建的文件夹名字具有高度概括性而不杂乱。
 
 ## 项目结构
 
 ```text
-config/
-└── follow-categories.json    # CLI 关注分类配置
-
 extension/
+├── config/
+│   └── follow-categories.json # CLI 与扩展共用的默认关注分类配置
 ├── manifest.json              # Chrome 扩展入口
 ├── service-worker.js          # MV3 后台逻辑
 ├── content/

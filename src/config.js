@@ -54,13 +54,20 @@ export const DEFAULT_FOLLOW_CATEGORIES = [
   '动物', '亲子', '健康', '情感', 'vlog', '生活兴趣', '生活经验', '其他'
 ];
 
+export const DEFAULT_FOLLOW_CATEGORIES_FILE = fileURLToPath(
+  new URL('../extension/config/follow-categories.default.json', import.meta.url)
+);
+
 export const FOLLOW_CATEGORIES_FILE = fileURLToPath(
-  new URL('../config/follow-categories.json', import.meta.url)
+  new URL('../extension/config/follow-categories.json', import.meta.url)
 );
 
 function loadFollowCategories() {
   try {
-    const raw = fs.readFileSync(FOLLOW_CATEGORIES_FILE, 'utf8');
+    const fileToLoad = fs.existsSync(FOLLOW_CATEGORIES_FILE) 
+      ? FOLLOW_CATEGORIES_FILE 
+      : DEFAULT_FOLLOW_CATEGORIES_FILE;
+    const raw = fs.readFileSync(fileToLoad, 'utf8');
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) {
       throw new Error('JSON 顶层必须是数组');

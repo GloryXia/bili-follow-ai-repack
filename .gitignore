@@ -9,3 +9,4 @@ reports/*.html
 .DS_Store
 .idea/
 package-lock.json
+extension/config/follow-categories.json

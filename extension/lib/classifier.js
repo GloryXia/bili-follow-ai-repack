@@ -425,9 +425,18 @@ async function prepareFavoriteSuggestion(rid, requestContext = {}) {
     let defaultCategories = [];
     try {
       const resp = await fetch(chrome.runtime.getURL('config/follow-categories.json'));
-      defaultCategories = await resp.json();
+      if (resp.ok) {
+        defaultCategories = await resp.json();
+      } else {
+        throw new Error('Fallback to default categories');
+      }
     } catch(e) {
-      console.warn('Failed to load follow-categories.json', e);
+      try {
+        const resp2 = await fetch(chrome.runtime.getURL('config/follow-categories.default.json'));
+        defaultCategories = await resp2.json();
+      } catch(err) {
+        console.warn('Failed to load any follow categories json', err);
+      }
     }
     
     const system = buildFavClassifyPrompt(
