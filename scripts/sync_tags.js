@@ -45,7 +45,7 @@ async function sync() {
     groups[category].push(mid);
   }
 
-  // 2. Fetch true tags from Bilibili
+  // 2. Fetch true tags from 阿B
   const currentTags = await bili.getTags();
   const tagMap = Object.fromEntries(currentTags.map(t => [t.name, t.tagid]));
 
